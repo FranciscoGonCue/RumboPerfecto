@@ -4,6 +4,7 @@ Una API simple de Django REST Framework para gestionar tareas.
 
 ## Instalación
 
+##usuario : admin , contra : admin123 
 1. **Crear y activar entorno virtual:**
 ```bash
 # Crear entorno virtual

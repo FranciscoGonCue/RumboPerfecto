@@ -7,17 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('marketdata', '0001_initial'),
         ('planning', '0001_initial'),
     ]
 
-    operations = [
-        migrations.AlterField(
-            model_name='itemplan',
-            name='tipo',
-            field=models.ForeignKey(blank=True, db_column='id_tipo', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='items', to='marketdata.tiposervicio'),
-        ),
-        migrations.DeleteModel(
-            name='TipoServicio',
-        ),
-    ]
+    operations = []

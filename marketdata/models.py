@@ -14,7 +14,7 @@ class TipoServicio(models.Model):
 
 
 class CatalogoServicio(models.Model):
-    id_servicio = models.TextField(primary_key=True)
+    id_servicio = models.CharField(max_length=64, primary_key=True)
     tipo = models.ForeignKey(
         TipoServicio,
         on_delete=models.CASCADE,

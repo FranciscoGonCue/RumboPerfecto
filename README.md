@@ -2,6 +2,22 @@
 
 Una API simple de Django REST Framework para gestionar tareas.
 
+## Ejecutar con Docker Compose (MySQL)
+
+1. Copia el archivo de ejemplo de variables:
+```bash
+cp .env.example .env
+```
+
+2. Construye y levanta los contenedores:
+```bash
+docker compose up --build
+```
+
+3. La API quedará disponible en:
+- `http://localhost:8000/api/`
+- `http://localhost:8000/admin/`
+
 ## Instalación
 
 ##usuario : admin , contra : admin123 

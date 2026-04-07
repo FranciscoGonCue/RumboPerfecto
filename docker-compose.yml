@@ -1,0 +1,40 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: rumboperfecto-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-rumbo_perfecto}
+      MYSQL_USER: ${DB_USER:-rumbo_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-rumbo_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    container_name: rumboperfecto-web
+    restart: unless-stopped
+    command: sh -c "until python manage.py migrate --fake-initial; do echo 'Esperando a MySQL...'; sleep 2; done; python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

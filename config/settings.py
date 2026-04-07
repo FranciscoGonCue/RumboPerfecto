@@ -1,6 +1,7 @@
 # ============ IMPORTACIONES ============
 import os
 from pathlib import Path
+from decouple import config
 
 # ============ DIRECTORIO BASE ============
 # Define donde está la carpeta del proyecto (la que contiene manage.py)
@@ -93,8 +94,15 @@ TEMPLATES = [
 # Configuración de la BD donde se guardan los datos
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',  # Usa SQLite (archivo simple)
-        'NAME': BASE_DIR / 'db.sqlite3',         # Archivo de la BD
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('DB_NAME', default='rumbo_perfecto'),
+        'USER': config('DB_USER', default='root'),
+        'PASSWORD': config('DB_PASSWORD', default=''),
+        'HOST': config('DB_HOST', default='127.0.0.1'),
+        'PORT': config('DB_PORT', default='3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
 

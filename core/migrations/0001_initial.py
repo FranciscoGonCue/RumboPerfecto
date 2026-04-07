@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id_usuario', models.AutoField(primary_key=True, serialize=False)),
                 ('nombre', models.TextField(blank=True, null=True)),
-                ('email', models.TextField(blank=True, null=True, unique=True)),
+                ('email', models.CharField(blank=True, max_length=254, null=True, unique=True)),
                 ('password_hash', models.TextField(blank=True, null=True)),
                 ('fecha_registro', models.DateTimeField(blank=True, null=True)),
             ],

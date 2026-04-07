@@ -10,6 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0001_initial'),
+        ('marketdata', '0001_initial'),
     ]
 
     operations = [
@@ -28,17 +29,6 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'ITEMS_PLAN',
-            },
-        ),
-        migrations.CreateModel(
-            name='TipoServicio',
-            fields=[
-                ('id_tipo', models.AutoField(primary_key=True, serialize=False)),
-                ('nombre_tipo', models.TextField(blank=True, null=True)),
-                ('icono', models.TextField(blank=True, null=True)),
-            ],
-            options={
-                'db_table': 'TIPOS_SERVICIO',
             },
         ),
         migrations.CreateModel(
@@ -77,6 +67,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='itemplan',
             name='tipo',
-            field=models.ForeignKey(blank=True, db_column='id_tipo', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='items', to='planning.tiposervicio'),
+            field=models.ForeignKey(blank=True, db_column='id_tipo', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='items', to='marketdata.tiposervicio'),
         ),
     ]

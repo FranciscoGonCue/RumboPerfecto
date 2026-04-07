@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CatalogoServicio',
             fields=[
-                ('id_servicio', models.TextField(primary_key=True, serialize=False)),
+                ('id_servicio', models.CharField(max_length=64, primary_key=True, serialize=False)),
                 ('nombre', models.TextField(blank=True, null=True)),
                 ('descripcion', models.TextField(blank=True, null=True)),
                 ('precio_base', models.FloatField(blank=True, null=True)),

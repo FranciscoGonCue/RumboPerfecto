@@ -1,115 +1,82 @@
-# API de Tareas - Django
+# RumboPerfecto Backend (Django + DRF)
 
-Una API simple de Django REST Framework para gestionar tareas.
+Backend real para auth + CRUD de viajes/actividades.
 
-## Ejecutar con Docker Compose (MySQL)
+## Stack
 
-1. Copia el archivo de ejemplo de variables:
+- Django 4.2
+- Django REST Framework
+- JWT con `djangorestframework-simplejwt`
+- SQLite por defecto (local) o MySQL (Docker)
+
+## Configuracion local
+
+1. Crear entorno virtual e instalar dependencias:
+
 ```bash
-cp .env.example .env
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-2. Construye y levanta los contenedores:
+2. Copiar variables de entorno:
+
+```bash
+copy .env.example .env
+```
+
+3. Migrar y levantar:
+
+```bash
+python manage.py migrate
+python manage.py runserver
+```
+
+API en `http://localhost:8000/api/`.
+
+## Docker (MySQL)
+
 ```bash
 docker compose up --build
 ```
 
-3. La API quedará disponible en:
-- `http://localhost:8000/api/`
-- `http://localhost:8000/admin/`
+## Endpoints principales
 
-## Instalación
+### Auth
 
-##usuario : admin , contra : admin123 
-1. **Crear y activar entorno virtual:**
+- `POST /api/auth/register/`
+- `POST /api/auth/login/`
+- `POST /api/auth/refresh/`
+- `POST /api/auth/logout/`
+- `GET /api/auth/me/`
+
+### Viajes
+
+- `GET /api/trips/`
+- `POST /api/trips/`
+- `GET /api/trips/{id}/`
+- `PUT /api/trips/{id}/`
+- `PATCH /api/trips/{id}/`
+- `DELETE /api/trips/{id}/`
+
+### Actividades
+
+- `GET /api/activities/`
+- `POST /api/activities/`
+- `GET /api/activities/{id}/`
+- `PUT /api/activities/{id}/`
+- `PATCH /api/activities/{id}/`
+- `DELETE /api/activities/{id}/`
+- `GET /api/activities/by_trip/?trip={trip_id}`
+
+### Compatibilidad legacy
+
+- `GET/POST/PUT/PATCH/DELETE /api/tasks/` (sin auth obligatoria)
+
+## Tests
+
 ```bash
-# Crear entorno virtual
-python3 -m venv .venv
-
-# Activar entorno virtual (macOS/Linux)
-source .venv/bin/activate
-
-# O en Windows:
-.venv\Scripts\activate
+python manage.py test
 ```
 
-2. **Instalar dependencias:**
-```bash
-pip install -r requirements.txt
-```
-
-2. **Realizar migraciones:**
-```bash
-python manage.py migrate
-```
-
-3. **Crear superusuario (opcional):**
-```bash
-python manage.py createsuperuser
-```
-
-4. **Ejecutar servidor:**
-```bash
-python manage.py runserver
-```
-
-## Cómo lanzar el programa
-
-### Opción 1: Ejecución rápida (después de la instalación inicial)
-```bash
-python manage.py runserver
-```
-La aplicación estará disponible en: `http://localhost:8000/`
-
-### Opción 2: Con puerto específico
-```bash
-python manage.py runserver 8000
-```
-
-### Opción 3: En producción (ejemplo)
-```bash
-python manage.py runserver 0.0.0.0:8000
-```
-
-### Acceder a la aplicación
-- **API REST:** `http://localhost:8000/api/`
-- **Admin Django:** `http://localhost:8000/admin/`
-
-## Endpoints disponibles
-
-### Tareas
-- `GET /api/tasks/` - Listar todas las tareas
-- `POST /api/tasks/` - Crear una nueva tarea
-- `GET /api/tasks/{id}/` - Obtener una tarea específica
-- `PUT /api/tasks/{id}/` - Actualizar una tarea
-- `PATCH /api/tasks/{id}/` - Actualización parcial
-- `DELETE /api/tasks/{id}/` - Eliminar una tarea
-
-### Endpoints personalizados
-- `GET /api/tasks/completed/` - Obtener tareas completadas
-- `GET /api/tasks/pending/` - Obtener tareas pendientes
-
-## Ejemplo de uso
-
-### Crear una tarea
-```bash
-curl -X POST http://localhost:8000/api/tasks/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Mi primera tarea",
-    "description": "Una descripción opcional",
-    "completed": false
-  }'
-```
-
-### Listar tareas
-```bash
-curl http://localhost:8000/api/tasks/
-```
-
-### Marcar como completada
-```bash
-curl -X PATCH http://localhost:8000/api/tasks/1/ \
-  -H "Content-Type: application/json" \
-  -d '{"completed": true}'
-```
+Cubre flujo de auth y CRUD basico de viajes/actividades con validaciones de rango de dia.

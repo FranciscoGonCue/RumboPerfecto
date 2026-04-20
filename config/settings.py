@@ -1,150 +1,130 @@
-# ============ IMPORTACIONES ============
-import os
+from datetime import timedelta
 from pathlib import Path
-from decouple import config
 
-# ============ DIRECTORIO BASE ============
-# Define donde está la carpeta del proyecto (la que contiene manage.py)
-# Se usa como referencia para otras rutas
+from decouple import Csv, config
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ============ SEGURIDAD ============
-# ⚠️ IMPORTANTE: Cambiar esto en producción
-SECRET_KEY = 'django-insecure-test-key-do-not-use-in-production'
+SECRET_KEY = config("DJANGO_SECRET_KEY", default="django-insecure-dev-key-change-me-please-123456")
+DEBUG = config("DJANGO_DEBUG", default=True, cast=bool)
+ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", default="127.0.0.1,localhost", cast=Csv())
 
-# Modo debug: True = muestra errores detallados (NO usar en producción)
-DEBUG = True
-
-# Lista de dominios que pueden acceder a Django
-# '*' = permite cualquier dominio (NO usar en producción, poder estar en http, https, localhost, etc.)
-ALLOWED_HOSTS = ['*']
-
-# ============ APLICACIONES INSTALADAS ============
-# Lista de apps que Django va a usar
 INSTALLED_APPS = [
-    # Apps por defecto de Django
-    'django.contrib.staticfiles',  # Maneja archivos estáticos (CSS, JS, imágenes)
-    'django.contrib.admin',        # Panel de administración de Django
-    'django.contrib.contenttypes', # Sistema de tipos de contenido
-    'django.contrib.auth',         # Sistema de autenticación y usuarios
-    'django.contrib.sessions',     # Sistema de sesiones
-    'django.contrib.messages',     # Sistema de mensajes
-    
-    # Apps externas
-    'rest_framework',              # Framework para crear APIs REST
-    'corsheaders',                 # ⭐ Permite peticiones desde otros dominios (Frontend)
-    
-    # Tus apps personalizadas
-    'core',        # App para funcionalidades principales
-    'marketdata',  # App para datos de mercado
-    'planning',    # App para planificación
-    'tasks',       # App para tareas
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
+    "core",
+    "marketdata",
+    "planning",
+    "tasks",
+    "travel",
 ]
 
-# ============ MIDDLEWARE ============
-# Funciones que procesan todas las peticiones/respuestas
-# El ORDEN importa
 MIDDLEWARE = [
-    # Seguridad
-    'django.middleware.security.SecurityMiddleware',
-    
-    # ⭐ CORS - Debe estar ANTES de SessionMiddleware
-    # Permite que el frontend en localhost:3000 hable con este backend
-    'corsheaders.middleware.CorsMiddleware',
-    
-    # Sesiones de usuario
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    
-    # Procesa peticiones
-    'django.middleware.common.CommonMiddleware',
-    
-    # Protección CSRF (Cross-Site Request Forgery)
-    'django.middleware.csrf.CsrfViewMiddleware',
-    
-    # Autenticación de usuarios
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    
-    # Sistema de mensajes
-    'django.contrib.messages.middleware.MessageMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# ============ CONFIGURATION DE URLs ============
-# Indica dónde están las URLs configuradas
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
-# ============ TEMPLATES ============
-# Configuración de cómo Django procesa archivos HTML
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # Carpetas con templates (vacío = busca en cada app)
-        'APP_DIRS': True,  # Busca templates dentro de cada app
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
-    },
-]
-
-# ============ BASE DE DATOS ============
-# Configuración de la BD donde se guardan los datos
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('DB_NAME', default='rumbo_perfecto'),
-        'USER': config('DB_USER', default='root'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='127.0.0.1'),
-        'PORT': config('DB_PORT', default='3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
     }
-}
+]
 
-# ============ VALIDACIÓN DE CONTRASEÑAS ============
-# Reglas que deben cumplir las contraseñas de los usuarios
+WSGI_APPLICATION = "config.wsgi.application"
+
+DB_ENGINE = config("DB_ENGINE", default="sqlite")
+if DB_ENGINE == "mysql":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": config("DB_NAME", default="rumbo_perfecto"),
+            "USER": config("DB_USER", default="root"),
+            "PASSWORD": config("DB_PASSWORD", default=""),
+            "HOST": config("DB_HOST", default="127.0.0.1"),
+            "PORT": config("DB_PORT", default="3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# ============ INTERNACIONALIZACIÓN ============
-# Idioma y zona horaria
-LANGUAGE_CODE = 'es-es'  # Español de España
-TIME_ZONE = 'America/Mexico_City'  # Zona horaria de México
-USE_I18N = True  # Habilita internacionalización
-USE_TZ = True   # Usa zonas horarias
+LANGUAGE_CODE = "es-es"
+TIME_ZONE = config("DJANGO_TIME_ZONE", default="UTC")
+USE_I18N = True
+USE_TZ = True
 
-# ============ ARCHIVOS ESTÁTICOS ============
-# CSS, JS e imágenes que no cambian
-STATIC_URL = '/static/'  # URL para acceder a archivos estáticos
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # Carpeta donde guardos los estáticos
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ============ CONFIGURACIÓN DE REST FRAMEWORK ============
-# Opciones para las APIs REST
 REST_FRAMEWORK = {
-    # Divide los resultados en páginas (máximo 10 items por página)
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
-# ============ CONFIGURACIÓN CORS ============
-# ⭐ ESTO ES IMPORTANTE PARA QUE EL FRONTEND SE CONECTE
-# Especifica qué dominios pueden acceder a esta API
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',      # Frontend Vue en desarrollo (local)
-    'http://127.0.0.1:3000',      # Mismo, pero con IP
-    'http://localhost:5173',      # Puerto alternativo de Vite
-    'http://127.0.0.1:5173',      # Mismo, pero con IP
-]
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=config("JWT_ACCESS_MINUTES", default=30, cast=int)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=config("JWT_REFRESH_DAYS", default=7, cast=int)),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+}
 
-# Permite enviar cookies entre dominios (necesario para autenticación)
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
+    cast=Csv(),
+)
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
+    cast=Csv(),
+)

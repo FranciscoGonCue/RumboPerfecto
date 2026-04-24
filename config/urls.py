@@ -5,6 +5,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from marketdata.views import CatalogoServicioListView
 from tasks.views import TaskViewSet
 from travel.views import ActivityViewSet, LoginView, LogoutView, MeView, RegisterView, TripViewSet
 
@@ -21,6 +22,7 @@ urlpatterns = [
     path("api/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/auth/me/", MeView.as_view(), name="auth-me"),
     path("api/", include(router.urls)),
+    path("api/servicios/", CatalogoServicioListView.as_view(), name="servicios-list"),
 ]
 
 if settings.DEBUG:

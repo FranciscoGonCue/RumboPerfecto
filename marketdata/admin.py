@@ -17,9 +17,10 @@ class TipoServicioAdmin(admin.ModelAdmin):
 
 @admin.register(CatalogoServicio)
 class CatalogoServicioAdmin(admin.ModelAdmin):
-    list_display = ['id_servicio', 'nombre', 'tipo', 'precio_base', 'disponible']
+    list_display = ['id_servicio', 'nombre', 'tipo', 'usuario', 'precio_base', 'disponible']
     list_filter = ['tipo', 'disponible']
     search_fields = ['id_servicio', 'nombre']
+    autocomplete_fields = ['usuario']
 
 
 @admin.register(DetalleAlojamiento)

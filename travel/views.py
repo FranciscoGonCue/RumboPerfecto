@@ -8,13 +8,17 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from marketdata.models import CatalogoServicio
+from marketdata.serializers import CatalogoServicioSerializer
 from .models import Activity, Trip
 from .serializers import (
     ActivitySerializer,
     ActivityWriteSerializer,
+    ChangePasswordSerializer,
     RegisterSerializer,
     TripSerializer,
     TripWriteSerializer,
+    UpdateProfileSerializer,
     UserSerializer,
 )
 
@@ -83,6 +87,58 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user).data)
+
+
+class MisServiciosView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        ids = (
+            list(user.alojamientos or []) +
+            list(user.actividades or []) +
+            list(user.restaurantes or [])
+        )
+        servicios = (
+            CatalogoServicio.objects
+            .filter(id_servicio__in=ids)
+            .select_related(
+                'tipo',
+                'detalle_alojamiento',
+                'detalle_transporte',
+                'detalle_restauracion',
+                'detalle_actividad',
+            )
+        )
+        return Response(CatalogoServicioSerializer(servicios, many=True).data)
+
+
+class UpdateSellerView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        seller = request.data.get("seller")
+        if not isinstance(seller, bool):
+            return Response({"detail": "El campo seller debe ser un booleano."}, status=status.HTTP_400_BAD_REQUEST)
+        request.user.seller = seller
+        request.user.save(update_fields=["seller"])
+        return Response(UserSerializer(request.user).data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Contraseña actualizada correctamente."})
 
 
 class TripViewSet(viewsets.ModelViewSet):

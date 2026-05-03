@@ -1,15 +1,20 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
-class Usuario(models.Model):
-    id_usuario = models.AutoField(primary_key=True)
-    nombre = models.TextField(null=True, blank=True)
-    email = models.CharField(max_length=254, unique=True, null=True, blank=True)
-    password_hash = models.TextField(null=True, blank=True)
-    fecha_registro = models.DateTimeField(null=True, blank=True)
+class CustomUser(AbstractUser):
+    """
+    Extensión del usuario de Django con atributo seller.
+    """
+    seller = models.BooleanField(default=False, help_text="Indica si el usuario es vendedor")
+    alojamientos = models.JSONField(default=list, blank=True, verbose_name="Alojamientos", help_text="Lista de alojamientos del vendedor")
+    actividades = models.JSONField(default=list, blank=True, verbose_name="Actividades", help_text="Lista de actividades del vendedor")
+    restaurantes = models.JSONField(default=list, blank=True, verbose_name="Restaurantes", help_text="Lista de restaurantes del vendedor")
+    planings = models.JSONField(default=list, blank=True, verbose_name="Plannings", help_text="Lista de planes de viaje del usuario")
 
     class Meta:
-        db_table = 'USUARIOS'
+        verbose_name = "Usuario"
+        verbose_name_plural = "Usuarios"
 
     def __str__(self):
-        return self.nombre or f"Usuario {self.id_usuario}"
+        return self.get_full_name() or self.username

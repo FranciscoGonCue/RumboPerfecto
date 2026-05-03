@@ -1,5 +1,5 @@
 from django.db import models
-from core.models import Usuario
+from django.conf import settings
 from marketdata.models import TipoServicio
 
 
@@ -18,7 +18,7 @@ class EstadoPago(models.TextChoices):
 class PlanViaje(models.Model):
     id_plan = models.AutoField(primary_key=True)
     usuario = models.ForeignKey(
-        Usuario,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         db_column='id_usuario',
         related_name='planes_viaje',
@@ -55,39 +55,25 @@ class ItemPlan(models.Model):
         null=True,
         blank=True,
     )
-    api_provider_id = models.TextField(null=True, blank=True)
     nombre_servicio = models.TextField(null=True, blank=True)
     ubicacion_lat = models.FloatField(null=True, blank=True)
     ubicacion_lon = models.FloatField(null=True, blank=True)
     fecha_hora_inicio = models.DateTimeField(null=True, blank=True)
     fecha_hora_fin = models.DateTimeField(null=True, blank=True)
     precio_estimado = models.FloatField(null=True, blank=True)
-    datos_json = models.TextField(null=True, blank=True, help_text='JSON embebido para detalles especificos')
-
-    class Meta:
-        db_table = 'ITEMS_PLAN'
-
-    def __str__(self):
-        return self.nombre_servicio or f"Item {self.id_item}"
-
-
-class Reserva(models.Model):
-    id_reserva = models.AutoField(primary_key=True)
-    item = models.OneToOneField(
-        ItemPlan,
-        on_delete=models.CASCADE,
-        db_column='id_item',
-        related_name='reserva',
-        null=True,
-        blank=True,
-    )
     localizador_confirmacion = models.TextField(null=True, blank=True)
     estado_pago = models.CharField(max_length=20, choices=EstadoPago.choices, null=True, blank=True)
     monto_total = models.FloatField(null=True, blank=True)
     fecha_transaccion = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'RESERVAS'
+        db_table = 'ITEMS_PLAN'
+
+    def save(self, *args, **kwargs):
+        # Rellenar monto_total con precio_estimado si no se ha indicado explícitamente
+        if self.monto_total is None and self.precio_estimado is not None:
+            self.monto_total = self.precio_estimado
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.localizador_confirmacion or f"Reserva {self.id_reserva}"
+        return self.nombre_servicio or f"Item {self.id_item}"

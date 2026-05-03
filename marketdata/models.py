@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -22,6 +23,14 @@ class CatalogoServicio(models.Model):
         related_name='servicios',
         null=True,
         blank=True,
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='servicios',
+        verbose_name='Usuario propietario',
     )
     nombre = models.TextField(null=True, blank=True)
     descripcion = models.TextField(null=True, blank=True)
@@ -53,9 +62,11 @@ class DetalleAlojamiento(models.Model):
 
     class Meta:
         db_table = 'DETALLE_ALOJAMIENTO'
+        verbose_name = 'Alojamiento'
+        verbose_name_plural = 'Alojamientos'
 
     def __str__(self):
-        return self.servicio.nombre if self.servicio_id else "Detalle alojamiento"
+        return self.servicio.nombre if self.servicio_id else "Alojamiento"
 
 
 class DetalleTransporte(models.Model):
@@ -74,9 +85,11 @@ class DetalleTransporte(models.Model):
 
     class Meta:
         db_table = 'DETALLE_TRANSPORTE'
+        verbose_name = 'Transporte'
+        verbose_name_plural = 'Transportes'
 
     def __str__(self):
-        return self.servicio.nombre if self.servicio_id else "Detalle transporte"
+        return self.servicio.nombre if self.servicio_id else "Transporte"
 
 
 class DetalleRestauracion(models.Model):
@@ -94,9 +107,11 @@ class DetalleRestauracion(models.Model):
 
     class Meta:
         db_table = 'DETALLE_RESTAURACION'
+        verbose_name = 'Restauración'
+        verbose_name_plural = 'Restauraciones'
 
     def __str__(self):
-        return self.servicio.nombre if self.servicio_id else "Detalle restauracion"
+        return self.servicio.nombre if self.servicio_id else "Restauración"
 
 
 class DetalleActividad(models.Model):
@@ -114,6 +129,8 @@ class DetalleActividad(models.Model):
 
     class Meta:
         db_table = 'DETALLE_ACTIVIDAD'
+        verbose_name = 'Actividad'
+        verbose_name_plural = 'Actividades'
 
     def __str__(self):
-        return self.servicio.nombre if self.servicio_id else "Detalle actividad"
+        return self.servicio.nombre if self.servicio_id else "Actividad"

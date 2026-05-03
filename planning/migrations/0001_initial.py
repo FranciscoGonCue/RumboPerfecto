@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
                 ('fecha_inicio', models.DateField(blank=True, null=True)),
                 ('fecha_fin', models.DateField(blank=True, null=True)),
                 ('estado_plan', models.CharField(blank=True, choices=[('Borrador', 'Borrador'), ('Confirmado', 'Confirmado'), ('Finalizado', 'Finalizado')], max_length=20, null=True)),
-                ('usuario', models.ForeignKey(blank=True, db_column='id_usuario', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='planes_viaje', to='core.usuario')),
+                ('usuario', models.ForeignKey(blank=True, db_column='id_usuario', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='planes_viaje', to='core.customuser')),
             ],
             options={
                 'db_table': 'PLANES_VIAJE',

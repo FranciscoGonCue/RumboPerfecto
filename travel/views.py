@@ -8,7 +8,13 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from marketdata.models import CatalogoServicio
+from marketdata.models import (
+    CatalogoServicio,
+    DetalleAlojamiento,
+    DetalleActividad,
+    DetalleRestauracion,
+    DetalleTransporte,
+)
 from marketdata.serializers import CatalogoServicioSerializer
 from .models import Activity, Trip
 from .serializers import (
@@ -99,15 +105,9 @@ class MisServiciosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        ids = (
-            list(user.alojamientos or []) +
-            list(user.actividades or []) +
-            list(user.restaurantes or [])
-        )
         servicios = (
             CatalogoServicio.objects
-            .filter(id_servicio__in=ids)
+            .filter(usuario=request.user)
             .select_related(
                 'tipo',
                 'detalle_alojamiento',
@@ -115,8 +115,110 @@ class MisServiciosView(APIView):
                 'detalle_restauracion',
                 'detalle_actividad',
             )
+            .order_by('id_servicio')
         )
         return Response(CatalogoServicioSerializer(servicios, many=True).data)
+
+
+class ServicioUpdateView(APIView):
+    """
+    PATCH /api/auth/mis-servicios/<id_servicio>/
+    Actualiza los campos del servicio y su detalle.
+    Solo el propietario puede modificarlo.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    # Campos permitidos por modelo
+    CATALOGO_FIELDS = {
+        'nombre', 'descripcion', 'precio_base', 'imagen_url', 'disponible',
+        'ciudad', 'pais', 'direccion', 'moneda', 'valoracion', 'num_resenas',
+        'etiquetas', 'destacado', 'ubicacion_lat', 'ubicacion_lon',
+    }
+    ALOJAMIENTO_FIELDS = {
+        'estrellas', 'hora_checkin', 'hora_checkout', 'amenidades',
+        'fecha_disponible_desde', 'fecha_disponible_hasta', 'fechas_no_disponibles',
+    }
+    ACTIVIDAD_FIELDS = {
+        'duracion_estimada', 'aforo_maximo', 'horario_apertura', 'guia_incluido',
+        'dificultad', 'duracion_texto', 'ubicacion_texto',
+        'incluye', 'requisitos', 'turnos_disponibles',
+        'fecha_disponible_desde', 'fecha_disponible_hasta', 'fechas_no_disponibles',
+    }
+    RESTAURACION_FIELDS = {
+        'tipo_cocina', 'es_vegano', 'precio_medio', 'requiere_reserva',
+        'rango_precios', 'abierto_ahora', 'especialidades', 'horario', 'ubicacion_texto',
+        'fecha_disponible_desde', 'fecha_disponible_hasta', 'fechas_no_disponibles',
+        'turnos_disponibles',
+    }
+    TRANSPORTE_FIELDS = {
+        'ciudad_origen', 'ciudad_destino', 'compania', 'codigo_vuelo',
+        'duracion_minutos', 'asientos_disponibles', 'comodidades',
+        'horarios_salida', 'clases',
+    }
+
+    def patch(self, request, id_servicio):
+        try:
+            servicio = CatalogoServicio.objects.select_related(
+                'detalle_alojamiento', 'detalle_actividad',
+                'detalle_restauracion', 'detalle_transporte',
+            ).get(id_servicio=id_servicio, usuario=request.user)
+        except CatalogoServicio.DoesNotExist:
+            return Response({'detail': 'No encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+
+        # ── CatalogoServicio ──────────────────────────────────────────────
+        catalogo_data = {k: v for k, v in data.items() if k in self.CATALOGO_FIELDS}
+        if catalogo_data:
+            for field, value in catalogo_data.items():
+                setattr(servicio, field, value)
+            servicio.save(update_fields=list(catalogo_data.keys()))
+
+        # ── Detalle específico ────────────────────────────────────────────
+        self._update_detail(servicio, data)
+
+        # Devolver el servicio actualizado completo
+        servicio.refresh_from_db()
+        serializer = CatalogoServicioSerializer(
+            CatalogoServicio.objects.select_related(
+                'tipo', 'detalle_alojamiento', 'detalle_transporte',
+                'detalle_restauracion', 'detalle_actividad',
+            ).get(pk=id_servicio)
+        )
+        return Response(serializer.data)
+
+    def _update_detail(self, servicio, data):
+        # Alojamiento
+        detail_data = {k: v for k, v in data.items() if k in self.ALOJAMIENTO_FIELDS}
+        if detail_data:
+            obj, _ = DetalleAlojamiento.objects.get_or_create(servicio=servicio)
+            for field, value in detail_data.items():
+                setattr(obj, field, value)
+            obj.save(update_fields=list(detail_data.keys()))
+
+        # Actividad
+        detail_data = {k: v for k, v in data.items() if k in self.ACTIVIDAD_FIELDS}
+        if detail_data:
+            obj, _ = DetalleActividad.objects.get_or_create(servicio=servicio)
+            for field, value in detail_data.items():
+                setattr(obj, field, value)
+            obj.save(update_fields=list(detail_data.keys()))
+
+        # Restauración
+        detail_data = {k: v for k, v in data.items() if k in self.RESTAURACION_FIELDS}
+        if detail_data:
+            obj, _ = DetalleRestauracion.objects.get_or_create(servicio=servicio)
+            for field, value in detail_data.items():
+                setattr(obj, field, value)
+            obj.save(update_fields=list(detail_data.keys()))
+
+        # Transporte
+        detail_data = {k: v for k, v in data.items() if k in self.TRANSPORTE_FIELDS}
+        if detail_data:
+            obj, _ = DetalleTransporte.objects.get_or_create(servicio=servicio)
+            for field, value in detail_data.items():
+                setattr(obj, field, value)
+            obj.save(update_fields=list(detail_data.keys()))
 
 
 class UpdateSellerView(APIView):

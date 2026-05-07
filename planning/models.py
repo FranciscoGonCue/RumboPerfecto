@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from marketdata.models import TipoServicio
+from marketdata.models import CatalogoServicio, TipoServicio
 
 
 class EstadoPlan(models.TextChoices):
@@ -65,6 +65,15 @@ class ItemPlan(models.Model):
     estado_pago = models.CharField(max_length=20, choices=EstadoPago.choices, null=True, blank=True)
     monto_total = models.FloatField(null=True, blank=True)
     fecha_transaccion = models.DateTimeField(null=True, blank=True)
+    reserva = models.OneToOneField(
+        'Reserva',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='item_plan',
+        db_column='id_reserva',
+        verbose_name='Reserva de origen',
+    )
 
     class Meta:
         db_table = 'ITEMS_PLAN'
@@ -77,3 +86,46 @@ class ItemPlan(models.Model):
 
     def __str__(self):
         return self.nombre_servicio or f"Item {self.id_item}"
+
+
+class EstadoReserva(models.TextChoices):
+    PENDIENTE  = 'Pendiente',  'Pendiente'
+    CONFIRMADA = 'Confirmada', 'Confirmada'
+    CANCELADA  = 'Cancelada',  'Cancelada'
+
+
+class Reserva(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reservas',
+        verbose_name='Usuario',
+    )
+    servicio = models.ForeignKey(
+        CatalogoServicio,
+        on_delete=models.CASCADE,
+        related_name='reservas',
+        verbose_name='Servicio',
+    )
+    fecha_inicio = models.DateField(verbose_name='Fecha inicio / check-in')
+    fecha_fin    = models.DateField(null=True, blank=True, verbose_name='Fecha fin / check-out')
+    turno        = models.CharField(max_length=10, null=True, blank=True, verbose_name='Turno (hora)')
+    personas     = models.PositiveIntegerField(default=1, verbose_name='Nº personas')
+    precio_total = models.FloatField(null=True, blank=True, verbose_name='Precio total')
+    estado       = models.CharField(
+        max_length=20,
+        choices=EstadoReserva.choices,
+        default=EstadoReserva.PENDIENTE,
+        verbose_name='Estado',
+    )
+    notas      = models.TextField(null=True, blank=True, verbose_name='Notas')
+    creado_en  = models.DateTimeField(auto_now_add=True, verbose_name='Creado en')
+
+    class Meta:
+        db_table = 'RESERVAS'
+        ordering = ['-creado_en']
+        verbose_name = 'Reserva'
+        verbose_name_plural = 'Reservas'
+
+    def __str__(self):
+        return f"Reserva #{self.pk} — {self.servicio_id} ({self.usuario_id})"

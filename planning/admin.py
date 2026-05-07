@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import PlanViaje, ItemPlan
+from .models import PlanViaje, ItemPlan, Reserva
 
 
 class ItemPlanInline(admin.TabularInline):
@@ -29,3 +29,23 @@ class ItemPlanAdmin(admin.ModelAdmin):
     list_filter = ['tipo', 'estado_pago']
     search_fields = ['nombre_servicio', 'localizador_confirmacion']
     autocomplete_fields = ['tipo', 'plan']
+
+
+@admin.register(Reserva)
+class ReservaAdmin(admin.ModelAdmin):
+    list_display  = ['id', 'servicio', 'usuario', 'fecha_inicio', 'fecha_fin', 'turno', 'personas', 'precio_total', 'estado', 'creado_en']
+    list_filter   = ['estado', 'fecha_inicio']
+    search_fields = ['usuario__email', 'usuario__name', 'servicio__nombre', 'servicio__id_servicio']
+    autocomplete_fields = ['usuario', 'servicio']
+    readonly_fields = ['creado_en']
+    fieldsets = (
+        ('Reserva', {
+            'fields': ('usuario', 'servicio', 'estado')
+        }),
+        ('Fechas y turno', {
+            'fields': ('fecha_inicio', 'fecha_fin', 'turno', 'personas')
+        }),
+        ('Precio y notas', {
+            'fields': ('precio_total', 'notas', 'creado_en')
+        }),
+    )

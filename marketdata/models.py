@@ -40,6 +40,16 @@ class CatalogoServicio(models.Model):
     imagen_url = models.TextField(null=True, blank=True)
     disponible = models.BooleanField(null=True, blank=True)
 
+    # Campos nuevos (comunes a todas las vistas)
+    valoracion = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, verbose_name='Valoración (0-5)')
+    num_resenas = models.IntegerField(null=True, blank=True, verbose_name='Nº reseñas')
+    ciudad = models.CharField(max_length=120, null=True, blank=True)
+    pais = models.CharField(max_length=100, null=True, blank=True)
+    direccion = models.CharField(max_length=255, null=True, blank=True, verbose_name='Dirección')
+    moneda = models.CharField(max_length=5, null=True, blank=True, default='€')
+    etiquetas = models.JSONField(null=True, blank=True, default=list, verbose_name='Etiquetas (JSON)')
+    destacado = models.BooleanField(default=False, verbose_name='Destacado')
+
     class Meta:
         db_table = 'CATALOGO_SERVICIOS'
 
@@ -58,7 +68,10 @@ class DetalleAlojamiento(models.Model):
     estrellas = models.IntegerField(null=True, blank=True)
     hora_checkin = models.TimeField(null=True, blank=True)
     hora_checkout = models.TimeField(null=True, blank=True)
-    servicios_extra = models.TextField(null=True, blank=True)
+    amenidades = models.JSONField(null=True, blank=True, default=list, verbose_name='Amenities (JSON)')
+    fecha_disponible_desde = models.DateField(null=True, blank=True, verbose_name='Disponible desde')
+    fecha_disponible_hasta = models.DateField(null=True, blank=True, verbose_name='Disponible hasta')
+    fechas_no_disponibles = models.JSONField(null=True, blank=True, default=list, verbose_name='Fechas no disponibles (JSON)')
 
     class Meta:
         db_table = 'DETALLE_ALOJAMIENTO'
@@ -82,6 +95,11 @@ class DetalleTransporte(models.Model):
     compania = models.TextField(null=True, blank=True)
     codigo_vuelo = models.TextField(null=True, blank=True)
     duracion_minutos = models.IntegerField(null=True, blank=True)
+    # Campos nuevos
+    asientos_disponibles = models.IntegerField(null=True, blank=True, verbose_name='Asientos disponibles')
+    comodidades = models.JSONField(null=True, blank=True, default=list, verbose_name='Comodidades (JSON)')
+    horarios_salida = models.JSONField(null=True, blank=True, default=list, verbose_name='Horarios de salida (JSON)')
+    clases = models.JSONField(null=True, blank=True, default=list, verbose_name='Clases (JSON)')
 
     class Meta:
         db_table = 'DETALLE_TRANSPORTE'
@@ -104,6 +122,17 @@ class DetalleRestauracion(models.Model):
     es_vegano = models.BooleanField(null=True, blank=True)
     precio_medio = models.FloatField(null=True, blank=True)
     requiere_reserva = models.BooleanField(null=True, blank=True)
+    rango_precios = models.CharField(max_length=5, null=True, blank=True, verbose_name='Rango de precios (€/€€/€€€)')
+    abierto_ahora = models.BooleanField(null=True, blank=True, verbose_name='Abierto ahora')
+    especialidades = models.JSONField(null=True, blank=True, default=list, verbose_name='Especialidades (JSON)')
+    horario = models.JSONField(null=True, blank=True, default=dict, verbose_name='Horario semanal (JSON)')
+    ubicacion_texto = models.CharField(max_length=255, null=True, blank=True, verbose_name='Dirección/zona')
+    fecha_disponible_desde = models.DateField(null=True, blank=True, verbose_name='Disponible desde')
+    fecha_disponible_hasta = models.DateField(null=True, blank=True, verbose_name='Disponible hasta')
+    fechas_no_disponibles = models.JSONField(null=True, blank=True, default=list, verbose_name='Fechas no disponibles (JSON)')
+    turnos_disponibles = models.JSONField(null=True, blank=True, default=list, verbose_name='Turnos disponibles (JSON)')
+    # Por cada fecha (YYYY-MM-DD), lista de turnos ya reservados (no modificar turnos_disponibles plantilla)
+    turnos_ocupados = models.JSONField(null=True, blank=True, default=dict, verbose_name='Turnos ocupados por fecha (JSON)')
 
     class Meta:
         db_table = 'DETALLE_RESTAURACION'
@@ -114,6 +143,14 @@ class DetalleRestauracion(models.Model):
         return self.servicio.nombre if self.servicio_id else "Restauración"
 
 
+DIFICULTAD_CHOICES = [
+    ('Fácil', 'Fácil'),
+    ('Moderado', 'Moderado'),
+    ('Difícil', 'Difícil'),
+    ('Extremo', 'Extremo'),
+]
+
+
 class DetalleActividad(models.Model):
     servicio = models.OneToOneField(
         CatalogoServicio,
@@ -122,10 +159,21 @@ class DetalleActividad(models.Model):
         db_column='id_servicio',
         related_name='detalle_actividad',
     )
-    duracion_estimada = models.IntegerField(null=True, blank=True)
-    aforo_maximo = models.IntegerField(null=True, blank=True)
+    duracion_estimada = models.IntegerField(null=True, blank=True, verbose_name='Duración (minutos)')
+    aforo_maximo = models.IntegerField(null=True, blank=True, verbose_name='Aforo máximo')
     horario_apertura = models.TextField(null=True, blank=True)
     guia_incluido = models.BooleanField(null=True, blank=True)
+    # Campos nuevos
+    dificultad = models.CharField(max_length=20, choices=DIFICULTAD_CHOICES, null=True, blank=True)
+    duracion_texto = models.CharField(max_length=50, null=True, blank=True, verbose_name='Duración (texto, ej: "2h 30m")')
+    ubicacion_texto = models.CharField(max_length=255, null=True, blank=True, verbose_name='Ubicación/zona')
+    incluye = models.JSONField(null=True, blank=True, default=list, verbose_name='Incluye (JSON)')
+    requisitos = models.JSONField(null=True, blank=True, default=list, verbose_name='Requisitos (JSON)')
+    turnos_disponibles = models.JSONField(null=True, blank=True, default=list, verbose_name='Turnos disponibles (JSON)')
+    fecha_disponible_desde = models.DateField(null=True, blank=True, verbose_name='Disponible desde')
+    fecha_disponible_hasta = models.DateField(null=True, blank=True, verbose_name='Disponible hasta')
+    fechas_no_disponibles = models.JSONField(null=True, blank=True, default=list, verbose_name='Fechas no disponibles (JSON)')
+    turnos_ocupados = models.JSONField(null=True, blank=True, default=dict, verbose_name='Turnos ocupados por fecha (JSON)')
 
     class Meta:
         db_table = 'DETALLE_ACTIVIDAD'

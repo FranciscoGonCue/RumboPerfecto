@@ -16,6 +16,7 @@ from marketdata.models import (
     DetalleTransporte,
 )
 from marketdata.serializers import CatalogoServicioSerializer
+from marketdata.views import catalogo_servicios_queryset
 from .models import Activity, Trip
 from .serializers import (
     ActivitySerializer,
@@ -105,18 +106,7 @@ class MisServiciosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        servicios = (
-            CatalogoServicio.objects
-            .filter(usuario=request.user)
-            .select_related(
-                'tipo',
-                'detalle_alojamiento',
-                'detalle_transporte',
-                'detalle_restauracion',
-                'detalle_actividad',
-            )
-            .order_by('id_servicio')
-        )
+        servicios = catalogo_servicios_queryset().filter(usuario=request.user).order_by('id_servicio')
         return Response(CatalogoServicioSerializer(servicios, many=True).data)
 
 
@@ -180,10 +170,7 @@ class ServicioUpdateView(APIView):
         # Devolver el servicio actualizado completo
         servicio.refresh_from_db()
         serializer = CatalogoServicioSerializer(
-            CatalogoServicio.objects.select_related(
-                'tipo', 'detalle_alojamiento', 'detalle_transporte',
-                'detalle_restauracion', 'detalle_actividad',
-            ).get(pk=id_servicio)
+            catalogo_servicios_queryset().get(pk=id_servicio)
         )
         return Response(serializer.data)
 

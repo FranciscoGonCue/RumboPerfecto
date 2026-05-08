@@ -5,7 +5,11 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from marketdata.views import CatalogoServicioListView, CatalogoServicioDetailView
+from marketdata.views import (
+    CatalogoServicioListView,
+    CatalogoServicioDetailView,
+    ResenaServicioListCreateView,
+)
 from tasks.views import TaskViewSet
 from planning.views import MisPlansView, MisReservasView, PlanDetailView, PlanItemDetailView, PlanItemsView, ReservaDetailView, ServicioReservaEstadoView, ServicioReservasView, TiposServicioView
 from travel.views import ActivityViewSet, ChangePasswordView, LoginView, LogoutView, MeView, MisServiciosView, RegisterView, ServicioUpdateView, TripViewSet, UpdateSellerView
@@ -37,6 +41,11 @@ urlpatterns = [
     path("api/tipos-servicio/", TiposServicioView.as_view(), name="tipos-servicio"),
     path("api/", include(router.urls)),
     path("api/servicios/", CatalogoServicioListView.as_view(), name="servicios-list"),
+    path(
+        "api/servicios/<str:id_servicio>/resenas/",
+        ResenaServicioListCreateView.as_view(),
+        name="servicios-resenas",
+    ),
     path("api/servicios/<str:id_servicio>/", CatalogoServicioDetailView.as_view(), name="servicios-detail"),
 ]
 

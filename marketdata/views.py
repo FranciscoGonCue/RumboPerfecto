@@ -1,19 +1,32 @@
-from rest_framework.generics import ListAPIView, RetrieveAPIView
-from rest_framework.permissions import AllowAny
+from django.db.models import Prefetch
+from django.shortcuts import get_object_or_404
+from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from .models import CatalogoServicio
-from .serializers import CatalogoServicioSerializer
+from .models import CatalogoServicio, ResenaServicio
+from .serializers import CatalogoServicioSerializer, ResenaServicioSerializer
 
-_SERVICIO_QUERYSET = (
-    CatalogoServicio.objects
-    .select_related(
-        "tipo",
-        "detalle_alojamiento",
-        "detalle_transporte",
-        "detalle_restauracion",
-        "detalle_actividad",
+
+def catalogo_servicios_queryset():
+    """
+    Catálogo con tipos, detalles y relación resenas (lista en JSON al serializar).
+    """
+    return (
+        CatalogoServicio.objects
+        .select_related(
+            "tipo",
+            "detalle_alojamiento",
+            "detalle_transporte",
+            "detalle_restauracion",
+            "detalle_actividad",
+        )
+        .prefetch_related(
+            Prefetch(
+                "resenas",
+                queryset=ResenaServicio.objects.select_related("usuario").order_by("-creado_en"),
+            ),
+        )
     )
-)
 
 
 class CatalogoServicioListView(ListAPIView):
@@ -27,7 +40,7 @@ class CatalogoServicioListView(ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return _SERVICIO_QUERYSET.order_by("id_servicio")[:200]
+        return catalogo_servicios_queryset().order_by("id_servicio")[:200]
 
 
 class CatalogoServicioDetailView(RetrieveAPIView):
@@ -41,4 +54,32 @@ class CatalogoServicioDetailView(RetrieveAPIView):
     lookup_field = "id_servicio"
 
     def get_queryset(self):
-        return _SERVICIO_QUERYSET
+        return catalogo_servicios_queryset()
+
+
+class ResenaServicioListCreateView(ListCreateAPIView):
+    """
+    GET /api/servicios/<id_servicio>/resenas/ — lista pública de reseñas.
+    POST — crea reseña autenticado (una por usuario y servicio).
+    """
+
+    serializer_class = ResenaServicioSerializer
+    pagination_class = None
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def get_queryset(self):
+        sid = self.kwargs["id_servicio"]
+        return (
+            ResenaServicio.objects.select_related("usuario")
+            .filter(servicio_id=sid)
+            .order_by("-creado_en")
+        )
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["servicio"] = get_object_or_404(CatalogoServicio, pk=self.kwargs["id_servicio"])
+        return ctx

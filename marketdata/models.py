@@ -1,5 +1,9 @@
+from decimal import Decimal
+
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Avg, Count
 
 
 class TipoServicio(models.Model):
@@ -55,6 +59,74 @@ class CatalogoServicio(models.Model):
 
     def __str__(self):
         return self.nombre or self.id_servicio
+
+
+class ResenaServicio(models.Model):
+    """
+    Reseña de un usuario sobre un servicio del catálogo.
+    Un usuario solo puede tener una reseña por servicio (unique constraint).
+    """
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='resenas_servicios',
+        verbose_name='Usuario',
+    )
+    servicio = models.ForeignKey(
+        CatalogoServicio,
+        on_delete=models.CASCADE,
+        related_name='resenas',
+        db_column='id_servicio',
+        verbose_name='Servicio',
+    )
+    mensaje = models.TextField(verbose_name='Mensaje')
+    puntuacion = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        verbose_name='Puntuación (1–5)',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+
+    class Meta:
+        db_table = 'RESENAS_SERVICIO'
+        ordering = ['-creado_en']
+        verbose_name = 'Reseña de servicio'
+        verbose_name_plural = 'Reseñas de servicios'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'servicio'],
+                name='uniq_resena_usuario_servicio',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Reseña {self.pk} — {self.servicio_id} ({self.puntuacion}★)'
+
+    @classmethod
+    def sincronizar_valoracion_catalogo(cls, servicio_id: str) -> None:
+        agg = cls.objects.filter(servicio_id=servicio_id).aggregate(
+            promedio=Avg('puntuacion'),
+            total=Count('id'),
+        )
+        promedio = agg['promedio']
+        total = agg['total'] or 0
+        if promedio is not None:
+            valoracion = Decimal(str(round(float(promedio), 1)))
+        else:
+            valoracion = None
+        CatalogoServicio.objects.filter(pk=servicio_id).update(
+            valoracion=valoracion,
+            num_resenas=total,
+        )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        type(self).sincronizar_valoracion_catalogo(self.servicio_id)
+
+    def delete(self, *args, **kwargs):
+        sid = self.servicio_id
+        super().delete(*args, **kwargs)
+        type(self).sincronizar_valoracion_catalogo(sid)
 
 
 class DetalleAlojamiento(models.Model):

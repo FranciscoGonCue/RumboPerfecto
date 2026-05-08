@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     TipoServicio,
     CatalogoServicio,
+    ResenaServicio,
     DetalleAlojamiento,
     DetalleTransporte,
     DetalleRestauracion,
@@ -36,6 +37,16 @@ class DetalleRestauracionForm(forms.ModelForm):
         widgets = {
             'fechas_no_disponibles': AvailabilityCalendarWidget(),
         }
+
+
+@admin.register(ResenaServicio)
+class ResenaServicioAdmin(admin.ModelAdmin):
+    list_display = ['id', 'servicio', 'usuario', 'puntuacion', 'creado_en']
+    list_filter = ['puntuacion', 'creado_en']
+    search_fields = ['mensaje', 'servicio__id_servicio', 'servicio__nombre', 'usuario__username']
+    readonly_fields = ['creado_en']
+    autocomplete_fields = ['servicio']
+    raw_id_fields = ['usuario']
 
 
 @admin.register(TipoServicio)
@@ -127,6 +138,14 @@ _TIPO_INLINE_MAP = {
 }
 
 
+class ResenaServicioInline(admin.TabularInline):
+    model = ResenaServicio
+    extra = 0
+    fields = ('usuario', 'puntuacion', 'mensaje', 'creado_en')
+    readonly_fields = ('creado_en',)
+    raw_id_fields = ('usuario',)
+
+
 @admin.register(CatalogoServicio)
 class CatalogoServicioAdmin(admin.ModelAdmin):
     list_display = ['id_servicio', 'nombre', 'tipo', 'ciudad', 'precio_base', 'valoracion', 'destacado', 'disponible']
@@ -135,19 +154,19 @@ class CatalogoServicioAdmin(admin.ModelAdmin):
     autocomplete_fields = ['usuario']
 
     def get_inlines(self, request, obj=None):
+        resenas = (ResenaServicioInline,)
         if obj is None or obj.tipo is None:
-            # Servicio nuevo: mostrar todos para que el usuario elija
             return [
                 DetalleAlojamientoInline,
                 DetalleTransporteInline,
                 DetalleRestauracionInline,
                 DetalleActividadInline,
-            ]
+            ] + list(resenas)
         nombre_tipo = (obj.tipo.nombre_tipo or '').lower()
         for key, inline_cls in _TIPO_INLINE_MAP.items():
             if key in nombre_tipo:
-                return [inline_cls]
-        return []
+                return [inline_cls] + list(resenas)
+        return list(resenas)
 
     fieldsets = (
         ('Información básica', {

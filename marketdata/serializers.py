@@ -1,9 +1,58 @@
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError
+
 from rest_framework import serializers
 from .models import (
-    TipoServicio, CatalogoServicio,
+    TipoServicio, CatalogoServicio, ResenaServicio,
     DetalleAlojamiento, DetalleTransporte,
     DetalleRestauracion, DetalleActividad,
 )
+
+User = get_user_model()
+
+
+class ResenaUsuarioSerializer(serializers.ModelSerializer):
+    """Usuario visible en una reseña."""
+
+    nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "nombre"]
+
+    def get_nombre(self, obj):
+        fn = obj.get_full_name().strip()
+        return fn if fn else obj.username
+
+
+class ResenaServicioSerializer(serializers.ModelSerializer):
+    usuario = ResenaUsuarioSerializer(read_only=True)
+    id_servicio = serializers.CharField(source="servicio_id", read_only=True)
+
+    class Meta:
+        model = ResenaServicio
+        fields = ["id", "usuario", "mensaje", "puntuacion", "id_servicio", "creado_en"]
+        read_only_fields = ["id", "usuario", "id_servicio", "creado_en"]
+
+    def create(self, validated_data):
+        validated_data["usuario"] = self.context["request"].user
+        validated_data["servicio"] = self.context["servicio"]
+        try:
+            return super().create(validated_data)
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                {"non_field_errors": ["Ya existe una reseña tuya para este servicio."]}
+            ) from exc
+
+
+class ResenaServicioAnidadaSerializer(serializers.ModelSerializer):
+    """Reseña embebida en el payload del servicio (sin repetir id_servicio)."""
+
+    usuario = ResenaUsuarioSerializer(read_only=True)
+
+    class Meta:
+        model = ResenaServicio
+        fields = ["id", "usuario", "mensaje", "puntuacion", "creado_en"]
 
 
 class TipoServicioSerializer(serializers.ModelSerializer):
@@ -64,6 +113,7 @@ class CatalogoServicioSerializer(serializers.ModelSerializer):
     detalle_transporte = DetalleTransporteSerializer(read_only=True, default=None)
     detalle_restauracion = DetalleRestauracionSerializer(read_only=True, default=None)
     detalle_actividad = DetalleActividadSerializer(read_only=True, default=None)
+    resenas = ResenaServicioAnidadaSerializer(many=True, read_only=True)
 
     class Meta:
         model = CatalogoServicio
@@ -73,6 +123,7 @@ class CatalogoServicioSerializer(serializers.ModelSerializer):
             "imagen_url", "disponible",
             "valoracion", "num_resenas", "ciudad", "pais",
             "direccion", "moneda", "etiquetas", "destacado",
+            "resenas",
             "detalle_alojamiento", "detalle_transporte",
             "detalle_restauracion", "detalle_actividad",
         ]

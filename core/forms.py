@@ -1,34 +1,50 @@
+import logging
+
 from django import forms
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
+from django.db import DatabaseError
 from django.utils.safestring import mark_safe
 
 from .models import CustomUser
+
+logger = logging.getLogger(__name__)
 
 
 def _plan_choices() -> list[tuple[str, str]]:
     try:
         from planning.models import PlanViaje
-        qs = PlanViaje.objects.select_related('usuario').order_by('nombre_plan')
-        return [(str(p.id_plan), f"{p.nombre_plan or f'Plan {p.id_plan}'}" ) for p in qs]
+
+        qs = PlanViaje.objects.select_related("usuario").order_by("nombre_plan")
+        return [(str(p.id_plan), f"{p.nombre_plan or f'Plan {p.id_plan}'}") for p in qs]
+    except ImportError:
+        return []
+    except DatabaseError:
+        logger.warning("core.forms: tabla planning no disponible al cargar plan_choices", exc_info=True)
+        return []
     except Exception:
+        logger.warning("core.forms: error inesperado en plan_choices", exc_info=True)
         return []
 
 
 def _choices(tipo_nombre: str) -> list[tuple[str, str]]:
     try:
         from marketdata.models import CatalogoServicio
+
         qs = (
-            CatalogoServicio.objects
-            .filter(tipo__nombre_tipo=tipo_nombre, disponible=True)
-            .order_by('nombre')
+            CatalogoServicio.objects.filter(tipo__nombre_tipo=tipo_nombre, disponible=True).order_by("nombre")
         )
         return [(s.id_servicio, s.nombre or s.id_servicio) for s in qs]
+    except ImportError:
+        return []
+    except DatabaseError:
+        logger.warning("core.forms: BD no disponible al cargar choices de servicios (%s)", tipo_nombre, exc_info=True)
+        return []
     except Exception:
+        logger.warning("core.forms: error inesperado en choices (%s)", tipo_nombre, exc_info=True)
         return []
 
 
 class TomSelectMultiple(forms.SelectMultiple):
-    """<select multiple> enhanced with Tom Select (tag-style search selector)."""
 
     class Media:
         css = {'all': ('https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css',)}
@@ -57,7 +73,6 @@ class TomSelectMultiple(forms.SelectMultiple):
 
 
 class ServiceMultipleChoiceField(forms.MultipleChoiceField):
-    """MultipleChoiceField that stores/reads a plain list of strings (JSON)."""
 
     def to_python(self, value):
         return list(value) if value else []
@@ -68,7 +83,6 @@ class ServiceMultipleChoiceField(forms.MultipleChoiceField):
 
 
 class _ServiceFormMixin:
-    """Mixin that injects dynamic service multi-selects into a user form."""
 
     def _init_service_fields(self):
         self.fields['alojamientos'].choices = _choices('Alojamiento')
@@ -123,9 +137,17 @@ class CustomUserCreationForm(_ServiceFormMixin, UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser
         fields = (
-            'username', 'email', 'first_name', 'last_name',
-            'seller', 'alojamientos', 'actividades', 'restaurantes',
-            'password1', 'password2',
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "seller",
+            "alojamientos",
+            "actividades",
+            "restaurantes",
+            "planings",
+            "password1",
+            "password2",
         )
 
     def __init__(self, *args, **kwargs):
@@ -162,9 +184,19 @@ class CustomUserChangeForm(_ServiceFormMixin, UserChangeForm):
     class Meta(UserChangeForm.Meta):
         model = CustomUser
         fields = (
-            'username', 'email', 'first_name', 'last_name',
-            'seller', 'alojamientos', 'actividades', 'restaurantes',
-            'is_staff', 'is_active', 'groups', 'user_permissions',
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "seller",
+            "alojamientos",
+            "actividades",
+            "restaurantes",
+            "planings",
+            "is_staff",
+            "is_active",
+            "groups",
+            "user_permissions",
         )
 
     def __init__(self, *args, **kwargs):

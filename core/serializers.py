@@ -1,8 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import Activity, Trip
-
 User = get_user_model()
 
 
@@ -138,33 +136,3 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data["new_password"])
         user.save()
         return user
-
-
-class ActivitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Activity
-        fields = ["id", "trip", "day", "title", "location", "time", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at", "trip"]
-
-
-class TripSerializer(serializers.ModelSerializer):
-    activities = ActivitySerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Trip
-        fields = ["id", "title", "start_date", "end_date", "activities", "created_at", "updated_at"]
-        read_only_fields = ["id", "activities", "created_at", "updated_at"]
-
-
-class TripWriteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Trip
-        fields = ["id", "title", "start_date", "end_date", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-
-class ActivityWriteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Activity
-        fields = ["id", "trip", "day", "title", "location", "time", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at", "trip"]

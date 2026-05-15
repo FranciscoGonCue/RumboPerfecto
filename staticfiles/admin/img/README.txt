@@ -1,7 +1,6 @@
-All icons are taken from Font Awesome (http://fontawesome.io/) project.
-The Font Awesome font is licensed under the SIL OFL 1.1:
+Todos los iconos proceden del proyecto Font Awesome (http://fontawesome.io/).
+La fuente de Font Awesome está licenciada bajo SIL OFL 1.1:
 - https://scripts.sil.org/OFL
 
-SVG icons source: https://github.com/encharm/Font-Awesome-SVG-PNG
-Font-Awesome-SVG-PNG is licensed under the MIT license (see file license
-in current folder).
+Origen de los iconos SVG: https://github.com/encharm/Font-Awesome-SVG-PNG
+Font-Awesome-SVG-PNG bajo la licencia MIT

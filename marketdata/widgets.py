@@ -1,27 +1,14 @@
-"""
-Widget de calendario visual para seleccionar fechas no disponibles en el admin de Django.
-Renderiza un calendario interactivo que lee el rango disponible desde los campos
-fecha_disponible_desde / fecha_disponible_hasta del mismo formulario.
-"""
 import json
 from django.forms import Widget
 from django.utils.safestring import mark_safe
 
 
 class AvailabilityCalendarWidget(Widget):
-    """
-    Widget que muestra un calendario para marcar/desmarcar fechas no disponibles.
-    - Verde = disponible (dentro del rango)
-    - Rojo  = no disponible (seleccionado por el usuario)
-    - Gris  = fuera del rango o pasado
-    El valor almacenado es un array JSON: ["2026-06-15", "2026-07-04", ...]
-    """
 
     def render(self, name, value, attrs=None, renderer=None):
         attrs = attrs or {}
         widget_id = attrs.get('id', f'id_{name}')
 
-        # Parsear el valor actual
         try:
             blocked = json.loads(value) if isinstance(value, str) else (value or [])
             if not isinstance(blocked, list):
@@ -279,5 +266,4 @@ class AvailabilityCalendarWidget(Widget):
         return mark_safe(html)
 
     def value_from_datadict(self, data, files, name):
-        """Devuelve el valor tal cual viene del textarea oculto."""
         return data.get(name)

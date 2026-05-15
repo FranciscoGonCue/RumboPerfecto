@@ -35,7 +35,14 @@ class ItemPlanAdmin(admin.ModelAdmin):
 class ReservaAdmin(admin.ModelAdmin):
     list_display  = ['id', 'servicio', 'usuario', 'fecha_inicio', 'fecha_fin', 'turno', 'personas', 'precio_total', 'estado', 'creado_en']
     list_filter   = ['estado', 'fecha_inicio']
-    search_fields = ['usuario__email', 'usuario__name', 'servicio__nombre', 'servicio__id_servicio']
+    search_fields = [
+        'usuario__email',
+        'usuario__username',
+        'usuario__first_name',
+        'usuario__last_name',
+        'servicio__nombre',
+        'servicio__id_servicio',
+    ]
     autocomplete_fields = ['usuario', 'servicio']
     readonly_fields = ['creado_en']
     fieldsets = (

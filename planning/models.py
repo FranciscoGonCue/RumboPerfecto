@@ -58,6 +58,7 @@ class ItemPlan(models.Model):
     nombre_servicio = models.TextField(null=True, blank=True)
     ubicacion_lat = models.FloatField(null=True, blank=True)
     ubicacion_lon = models.FloatField(null=True, blank=True)
+    ubicacion_direccion = models.TextField(null=True, blank=True, verbose_name='Dirección (mapa)')
     fecha_hora_inicio = models.DateTimeField(null=True, blank=True)
     fecha_hora_fin = models.DateTimeField(null=True, blank=True)
     precio_estimado = models.FloatField(null=True, blank=True)
@@ -79,7 +80,6 @@ class ItemPlan(models.Model):
         db_table = 'ITEMS_PLAN'
 
     def save(self, *args, **kwargs):
-        # Rellenar monto_total con precio_estimado si no se ha indicado explícitamente
         if self.monto_total is None and self.precio_estimado is not None:
             self.monto_total = self.precio_estimado
         super().save(*args, **kwargs)

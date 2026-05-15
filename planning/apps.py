@@ -6,4 +6,4 @@ class PlanningConfig(AppConfig):
     name = 'planning'
 
     def ready(self):
-        import planning.signals  # noqa: F401
+        import planning.signals

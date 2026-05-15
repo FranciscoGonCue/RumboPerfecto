@@ -8,9 +8,6 @@ from .serializers import CatalogoServicioSerializer, ResenaServicioSerializer
 
 
 def catalogo_servicios_queryset():
-    """
-    Catálogo con tipos, detalles y relación resenas (lista en JSON al serializar).
-    """
     return (
         CatalogoServicio.objects
         .select_related(
@@ -30,11 +27,6 @@ def catalogo_servicios_queryset():
 
 
 class CatalogoServicioListView(ListAPIView):
-    """
-    GET /api/servicios/
-    Devuelve hasta 200 servicios del catálogo con sus detalles anidados.
-    Endpoint público — no requiere autenticación.
-    """
     serializer_class = CatalogoServicioSerializer
     permission_classes = [AllowAny]
     pagination_class = None
@@ -44,11 +36,6 @@ class CatalogoServicioListView(ListAPIView):
 
 
 class CatalogoServicioDetailView(RetrieveAPIView):
-    """
-    GET /api/servicios/<id>/
-    Devuelve el detalle de un único servicio.
-    Endpoint público — no requiere autenticación.
-    """
     serializer_class = CatalogoServicioSerializer
     permission_classes = [AllowAny]
     lookup_field = "id_servicio"
@@ -58,10 +45,6 @@ class CatalogoServicioDetailView(RetrieveAPIView):
 
 
 class ResenaServicioListCreateView(ListCreateAPIView):
-    """
-    GET /api/servicios/<id_servicio>/resenas/ — lista pública de reseñas.
-    POST — crea reseña autenticado (una por usuario y servicio).
-    """
 
     serializer_class = ResenaServicioSerializer
     pagination_class = None

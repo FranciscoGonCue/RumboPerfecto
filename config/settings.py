@@ -23,8 +23,6 @@ INSTALLED_APPS = [
     "core",
     "marketdata",
     "planning",
-    "tasks",
-    "travel",
 ]
 
 MIDDLEWARE = [

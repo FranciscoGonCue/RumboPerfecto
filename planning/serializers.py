@@ -31,6 +31,7 @@ class ItemPlanSerializer(serializers.ModelSerializer):
             'fecha_transaccion',
             'ubicacion_lat',
             'ubicacion_lon',
+            'ubicacion_direccion',
         ]
 
     def get_tipo_nombre(self, obj):
@@ -57,7 +58,7 @@ class PlanViajeSerializer(serializers.ModelSerializer):
 
 class ItemPlanWriteSerializer(serializers.ModelSerializer):
     reserva = serializers.PrimaryKeyRelatedField(
-        queryset=Reserva.objects.all(),
+        queryset=Reserva.objects.none(),
         required=False,
         allow_null=True,
     )
@@ -76,7 +77,19 @@ class ItemPlanWriteSerializer(serializers.ModelSerializer):
             'localizador_confirmacion',
             'ubicacion_lat',
             'ubicacion_lon',
+            'ubicacion_direccion',
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        qs = (
+            Reserva.objects.filter(usuario=user)
+            if user is not None and user.is_authenticated
+            else Reserva.objects.none()
+        )
+        self.fields["reserva"].queryset = qs
 
     def validate_reserva(self, value):
         if value is None:
@@ -93,6 +106,58 @@ class ItemPlanWriteSerializer(serializers.ModelSerializer):
         if conflict.exists():
             raise serializers.ValidationError('Esta reserva ya está añadida a un plan.')
         return value
+
+    def create(self, validated_data):
+        self._ubicacion_desde_servicio_reserva(validated_data, instance=None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'reserva' in validated_data and validated_data['reserva'] is not None:
+            self._ubicacion_desde_servicio_reserva(validated_data, instance=instance)
+        return super().update(instance, validated_data)
+
+    @staticmethod
+    def _ubicacion_desde_servicio_reserva(validated_data, instance=None):
+        reserva = validated_data.get('reserva')
+        if reserva is None:
+            return
+
+        svc = reserva.servicio
+
+        if instance is None:
+            lat = validated_data.get('ubicacion_lat')
+            lon = validated_data.get('ubicacion_lon')
+            direccion = validated_data.get('ubicacion_direccion')
+        else:
+            lat = (
+                validated_data['ubicacion_lat']
+                if 'ubicacion_lat' in validated_data
+                else instance.ubicacion_lat
+            )
+            lon = (
+                validated_data['ubicacion_lon']
+                if 'ubicacion_lon' in validated_data
+                else instance.ubicacion_lon
+            )
+            direccion = (
+                validated_data['ubicacion_direccion']
+                if 'ubicacion_direccion' in validated_data
+                else instance.ubicacion_direccion
+            )
+
+        if (lat is None or lon is None) and svc.ubicacion_lat is not None and svc.ubicacion_lon is not None:
+            validated_data.setdefault('ubicacion_lat', svc.ubicacion_lat)
+            validated_data.setdefault('ubicacion_lon', svc.ubicacion_lon)
+
+        if not direccion:
+            addr_parts = [
+                getattr(svc, 'direccion', None),
+                getattr(svc, 'ciudad', None),
+                getattr(svc, 'pais', None),
+            ]
+            addr = ', '.join(str(p).strip() for p in addr_parts if p)
+            if addr:
+                validated_data.setdefault('ubicacion_direccion', addr)
 
 
 class PlanViajeWriteSerializer(serializers.ModelSerializer):
@@ -112,8 +177,19 @@ class ReservaSerializer(serializers.ModelSerializer):
     servicio_ciudad  = serializers.CharField(source='servicio.ciudad', read_only=True)
     servicio_tipo   = serializers.CharField(source='servicio.tipo.nombre_tipo', read_only=True, default=None)
     servicio_tipo_id = serializers.IntegerField(source='servicio.tipo_id', read_only=True, allow_null=True)
-    usuario_email   = serializers.EmailField(source='usuario.email', read_only=True)
-    usuario_nombre  = serializers.CharField(source='usuario.name', read_only=True, default=None)
+    usuario_email = serializers.EmailField(source="usuario.email", read_only=True)
+    usuario_nombre = serializers.SerializerMethodField()
+
+    def get_usuario_nombre(self, obj):
+        u = getattr(obj, "usuario", None)
+        if u is None:
+            return None
+        fn = (u.get_full_name() or "").strip()
+        if fn:
+            return fn
+        if getattr(u, "username", None):
+            return u.username.strip()
+        return (u.email or "").strip() or None
 
     class Meta:
         model = Reserva

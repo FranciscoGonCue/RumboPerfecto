@@ -6,7 +6,6 @@ from .models import PlanViaje
 
 @receiver(post_save, sender=PlanViaje)
 def add_plan_to_user(sender, instance, created, **kwargs):
-    """Al crear un PlanViaje, añade su id al listado planings del usuario."""
     if not created or not instance.usuario_id:
         return
     user = instance.usuario
@@ -20,7 +19,6 @@ def add_plan_to_user(sender, instance, created, **kwargs):
 
 @receiver(post_delete, sender=PlanViaje)
 def remove_plan_from_user(sender, instance, **kwargs):
-    """Al eliminar un PlanViaje, quita su id del listado planings del usuario."""
     if not instance.usuario_id:
         return
     user = instance.usuario

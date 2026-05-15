@@ -154,14 +154,10 @@ class CatalogoServicioAdmin(admin.ModelAdmin):
     autocomplete_fields = ['usuario']
 
     def get_inlines(self, request, obj=None):
+        """Evita mostrar los cuatro inlines de detalle a la vez (evita datos incoherentes)."""
         resenas = (ResenaServicioInline,)
         if obj is None or obj.tipo is None:
-            return [
-                DetalleAlojamientoInline,
-                DetalleTransporteInline,
-                DetalleRestauracionInline,
-                DetalleActividadInline,
-            ] + list(resenas)
+            return list(resenas)
         nombre_tipo = (obj.tipo.nombre_tipo or '').lower()
         for key, inline_cls in _TIPO_INLINE_MAP.items():
             if key in nombre_tipo:

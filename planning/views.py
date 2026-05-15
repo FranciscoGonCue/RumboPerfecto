@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,9 +7,18 @@ from rest_framework.views import APIView
 import datetime
 from typing import Optional
 
+from core.geocoding import (
+    GeocodeLookupError,
+    GeocodeNotFoundError,
+    nominatim_geocode_first,
+)
+
 from marketdata.models import (
-    CatalogoServicio, TipoServicio,
-    DetalleAlojamiento, DetalleActividad, DetalleRestauracion,
+    CatalogoServicio,
+    TipoServicio,
+    DetalleAlojamiento,
+    DetalleActividad,
+    DetalleRestauracion,
 )
 from .models import EstadoReserva, ItemPlan, PlanViaje, Reserva
 from .serializers import (
@@ -48,11 +58,13 @@ def _turnos_restantes_dia(slots: list, fecha_key: str, ocupados_por_fecha: dict)
     return [t for t in slots if not _turno_en_lista(t, bloq)]
 
 
+def _lock_detalles_reserva(servicio_id: str) -> None:
+    DetalleAlojamiento.objects.select_for_update().filter(servicio_id=servicio_id).first()
+    DetalleActividad.objects.select_for_update().filter(servicio_id=servicio_id).first()
+    DetalleRestauracion.objects.select_for_update().filter(servicio_id=servicio_id).first()
+
+
 class MisPlansView(APIView):
-    """
-    GET  /api/auth/mis-planes/ — Lista todos los PlanViaje del usuario.
-    POST /api/auth/mis-planes/ — Crea un nuevo PlanViaje para el usuario.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -74,10 +86,6 @@ class MisPlansView(APIView):
 
 
 class PlanDetailView(APIView):
-    """
-    GET    /api/auth/mis-planes/<id>/ — Detalle completo de un PlanViaje del usuario.
-    DELETE /api/auth/mis-planes/<id>/ — Elimina un PlanViaje del usuario.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_plan(self, request, pk):
@@ -95,7 +103,6 @@ class PlanDetailView(APIView):
 
 
 class PlanItemsView(APIView):
-    """POST /api/auth/mis-planes/<id>/items/ — Añade un ItemPlan a un plan del usuario."""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -108,7 +115,6 @@ class PlanItemsView(APIView):
 
 
 class PlanItemDetailView(APIView):
-    """PATCH/DELETE /api/auth/mis-planes/<pk>/items/<item_pk>/"""
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_item(self, request, pk, item_pk):
@@ -130,7 +136,6 @@ class PlanItemDetailView(APIView):
 
 
 class TiposServicioView(APIView):
-    """GET /api/tipos-servicio/ — Lista todos los tipos de servicio disponibles."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -139,10 +144,6 @@ class TiposServicioView(APIView):
 
 
 class MisReservasView(APIView):
-    """
-    GET  /api/auth/mis-reservas/ — Reservas del usuario autenticado.
-    POST /api/auth/mis-reservas/ — Crear una nueva reserva.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -159,17 +160,28 @@ class MisReservasView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        conflict = MisReservasView._conflicto_turno(serializer.validated_data)
-        if conflict:
-            return Response({'detail': conflict}, status=status.HTTP_409_CONFLICT)
+        servicio_prev = serializer.validated_data["servicio"]
+        with transaction.atomic():
+            _lock_detalles_reserva(servicio_prev.pk)
+            servicio_fresh = CatalogoServicio.objects.select_related(
+                "tipo",
+                "detalle_alojamiento",
+                "detalle_actividad",
+                "detalle_restauracion",
+            ).get(pk=servicio_prev.pk)
+            data_con_servicio = {**serializer.validated_data, "servicio": servicio_fresh}
 
-        reserva = serializer.save(usuario=request.user)
-        self._bloquear_fechas(reserva)
+            conflict = MisReservasView._conflicto_turno(data_con_servicio)
+            if conflict:
+                return Response({"detail": conflict}, status=status.HTTP_409_CONFLICT)
+
+            reserva = serializer.save(usuario=request.user)
+            MisReservasView._bloquear_fechas(reserva)
+
         return Response(ReservaSerializer(reserva).data, status=status.HTTP_201_CREATED)
 
     @staticmethod
     def _conflicto_turno(data: dict) -> Optional[str]:
-        """Evita doble reserva del mismo turno el mismo día (actividad / restauración)."""
         servicio = data.get('servicio')
         if servicio is None:
             return None
@@ -194,10 +206,6 @@ class MisReservasView(APIView):
 
     @staticmethod
     def _bloquear_fechas(reserva: 'Reserva'):
-        """Alojamiento: bloquea el rango en fechas_no_disponibles.
-        Actividad / restaurante: marca turno como ocupado; el día solo va a fechas_no_disponibles
-        cuando no queden turnos libres.
-        """
         servicio = reserva.servicio
 
         fechas_nuevas: list[str] = []
@@ -242,7 +250,6 @@ class MisReservasView(APIView):
         update_fields: list[str] = ['turnos_ocupados']
 
         if not slots:
-            # Sin plantilla de turnos: el día completo queda indisponible
             fechas_nd.add(fecha_key)
             detalle.fechas_no_disponibles = sorted(fechas_nd)
             detalle.save(update_fields=['fechas_no_disponibles'])
@@ -266,6 +273,79 @@ class MisReservasView(APIView):
 
         detalle.save(update_fields=update_fields)
 
+    @staticmethod
+    def _liberar_fechas(reserva: "Reserva") -> None:
+        servicio = reserva.servicio
+
+        fechas_nuevas: list[str] = []
+        fecha = reserva.fecha_inicio
+        fin = reserva.fecha_fin or reserva.fecha_inicio
+        while fecha <= fin:
+            fechas_nuevas.append(str(fecha))
+            fecha += datetime.timedelta(days=1)
+
+        try:
+            obj = servicio.detalle_alojamiento
+            actual = set(obj.fechas_no_disponibles or [])
+            obj.fechas_no_disponibles = sorted(actual - set(fechas_nuevas))
+            obj.save(update_fields=["fechas_no_disponibles"])
+            return
+        except DetalleAlojamiento.DoesNotExist:
+            pass
+
+        try:
+            det = servicio.detalle_actividad
+            MisReservasView._liberar_turno_actividad_restauracion(det, reserva)
+            return
+        except DetalleActividad.DoesNotExist:
+            pass
+        try:
+            det = servicio.detalle_restauracion
+            MisReservasView._liberar_turno_actividad_restauracion(det, reserva)
+        except DetalleRestauracion.DoesNotExist:
+            pass
+
+    @staticmethod
+    def _liberar_turno_actividad_restauracion(detalle, reserva: "Reserva") -> None:
+        fecha_key = str(reserva.fecha_inicio)
+        turno_raw = (reserva.turno or "").strip()
+        slots = list(detalle.turnos_disponibles or [])
+        ocupados = dict(detalle.turnos_ocupados or {})
+        fechas_nd = set(detalle.fechas_no_disponibles or [])
+        update_fields: list[str] = ["turnos_ocupados"]
+
+        if not slots:
+            fechas_nd.discard(fecha_key)
+            detalle.fechas_no_disponibles = sorted(fechas_nd)
+            detalle.save(update_fields=["fechas_no_disponibles"])
+            return
+
+        if not turno_raw:
+            return
+
+        canon = _canon_turno(slots, turno_raw)
+        lista_dia = list(ocupados.get(fecha_key) or [])
+        nueva_lista: list[str] = []
+        removed = False
+        for t in lista_dia:
+            if not removed and _turnos_equivalentes(t, canon):
+                removed = True
+                continue
+            nueva_lista.append(t)
+        if nueva_lista:
+            ocupados[fecha_key] = nueva_lista
+        else:
+            ocupados.pop(fecha_key, None)
+        detalle.turnos_ocupados = ocupados
+
+        restantes = _turnos_restantes_dia(slots, fecha_key, ocupados)
+        if restantes and fecha_key in fechas_nd:
+            fechas_nd.discard(fecha_key)
+            detalle.fechas_no_disponibles = sorted(fechas_nd)
+            update_fields.append("fechas_no_disponibles")
+
+        detalle.save(update_fields=update_fields)
+
 
 def _iter_actividad_rest_detalle(servicio):
     try:
@@ -279,11 +359,6 @@ def _iter_actividad_rest_detalle(servicio):
 
 
 class ReservaDetailView(APIView):
-    """
-    GET    /api/auth/mis-reservas/<id>/ — Detalle de una reserva del usuario.
-    PATCH  /api/auth/mis-reservas/<id>/ — Actualizar estado (ej. cancelar).
-    DELETE /api/auth/mis-reservas/<id>/ — Eliminar reserva.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_reserva(self, request, pk):
@@ -296,21 +371,51 @@ class ReservaDetailView(APIView):
         reserva = self._get_reserva(request, pk)
         allowed = {'estado', 'notas'}
         data = {k: v for k, v in request.data.items() if k in allowed}
+        old_estado = reserva.estado
         for field, value in data.items():
             setattr(reserva, field, value)
-        reserva.save(update_fields=list(data.keys()))
+        nuevo = data.get("estado")
+        if nuevo == EstadoReserva.CANCELADA.value and old_estado != EstadoReserva.CANCELADA.value:
+            MisReservasView._liberar_fechas(reserva)
+        if data:
+            reserva.save(update_fields=list(data.keys()))
+        reserva.refresh_from_db()
         return Response(ReservaSerializer(reserva).data)
 
     def delete(self, request, pk):
-        self._get_reserva(request, pk).delete()
+        reserva = self._get_reserva(request, pk)
+        MisReservasView._liberar_fechas(reserva)
+        reserva.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class GeocodeAddressView(APIView):
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        q = (request.GET.get('q') or '').strip()
+        if len(q) < 4:
+            return Response(
+                {'detail': 'Escribe al menos 4 caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(q) > 280:
+            q = q[:280]
+
+        try:
+            lat, lon, display_name = nominatim_geocode_first(q)
+        except GeocodeNotFoundError:
+            return Response({'detail': 'No encontramos esa dirección.'}, status=status.HTTP_404_NOT_FOUND)
+        except GeocodeLookupError:
+            return Response(
+                {'detail': 'El servicio de mapas no respondió correctamente.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response({'lat': lat, 'lon': lon, 'display_name': display_name})
+
+
 class ServicioReservasView(APIView):
-    """
-    GET /api/auth/mis-servicios/<id_servicio>/reservas/
-    Lista las reservas de un servicio que pertenece al usuario autenticado (vendedor).
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, id_servicio):
@@ -327,10 +432,6 @@ class ServicioReservasView(APIView):
 
 
 class ServicioReservaEstadoView(APIView):
-    """
-    PATCH /api/auth/mis-servicios/<id_servicio>/reservas/<pk>/
-    El propietario del servicio confirma o cancela una reserva de ese servicio.
-    """
     permission_classes = [permissions.IsAuthenticated]
     _ESTADOS_VENDEDOR = frozenset({
         EstadoReserva.CONFIRMADA.value,
@@ -348,7 +449,10 @@ class ServicioReservaEstadoView(APIView):
                 {'detail': 'Solo se admite estado Confirmada o Cancelada.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        old_estado = reserva.estado
         reserva.estado = estado
+        if estado == EstadoReserva.CANCELADA.value and old_estado != EstadoReserva.CANCELADA.value:
+            MisReservasView._liberar_fechas(reserva)
         reserva.save(update_fields=['estado'])
         reserva = (
             Reserva.objects

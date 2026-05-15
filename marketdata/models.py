@@ -44,7 +44,6 @@ class CatalogoServicio(models.Model):
     imagen_url = models.TextField(null=True, blank=True)
     disponible = models.BooleanField(null=True, blank=True)
 
-    # Campos nuevos (comunes a todas las vistas)
     valoracion = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, verbose_name='Valoración (0-5)')
     num_resenas = models.IntegerField(null=True, blank=True, verbose_name='Nº reseñas')
     ciudad = models.CharField(max_length=120, null=True, blank=True)
@@ -62,10 +61,6 @@ class CatalogoServicio(models.Model):
 
 
 class ResenaServicio(models.Model):
-    """
-    Reseña de un usuario sobre un servicio del catálogo.
-    Un usuario solo puede tener una reseña por servicio (unique constraint).
-    """
 
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -203,7 +198,6 @@ class DetalleRestauracion(models.Model):
     fecha_disponible_hasta = models.DateField(null=True, blank=True, verbose_name='Disponible hasta')
     fechas_no_disponibles = models.JSONField(null=True, blank=True, default=list, verbose_name='Fechas no disponibles (JSON)')
     turnos_disponibles = models.JSONField(null=True, blank=True, default=list, verbose_name='Turnos disponibles (JSON)')
-    # Por cada fecha (YYYY-MM-DD), lista de turnos ya reservados (no modificar turnos_disponibles plantilla)
     turnos_ocupados = models.JSONField(null=True, blank=True, default=dict, verbose_name='Turnos ocupados por fecha (JSON)')
 
     class Meta:
@@ -235,7 +229,6 @@ class DetalleActividad(models.Model):
     aforo_maximo = models.IntegerField(null=True, blank=True, verbose_name='Aforo máximo')
     horario_apertura = models.TextField(null=True, blank=True)
     guia_incluido = models.BooleanField(null=True, blank=True)
-    # Campos nuevos
     dificultad = models.CharField(max_length=20, choices=DIFICULTAD_CHOICES, null=True, blank=True)
     duracion_texto = models.CharField(max_length=50, null=True, blank=True, verbose_name='Duración (texto, ej: "2h 30m")')
     ubicacion_texto = models.CharField(max_length=255, null=True, blank=True, verbose_name='Ubicación/zona')

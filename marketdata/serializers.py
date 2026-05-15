@@ -12,7 +12,6 @@ User = get_user_model()
 
 
 class ResenaUsuarioSerializer(serializers.ModelSerializer):
-    """Usuario visible en una reseña."""
 
     nombre = serializers.SerializerMethodField()
 
@@ -46,7 +45,6 @@ class ResenaServicioSerializer(serializers.ModelSerializer):
 
 
 class ResenaServicioAnidadaSerializer(serializers.ModelSerializer):
-    """Reseña embebida en el payload del servicio (sin repetir id_servicio)."""
 
     usuario = ResenaUsuarioSerializer(read_only=True)
 
